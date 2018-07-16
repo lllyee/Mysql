@@ -1,79 +1,50 @@
-1.查询" 01 "课程比" 02 "课程成绩高的学生的信息及课程分数
-select * from
-(select * from SC where  CId='01') as T1,(select * from SC where CId='02') as T2
-where T1.Score >  T2.Score and
-T1.SId=T2.SId;
+1. 查询" 01 "课程比" 02 "课程成绩高的学生的信息及课程分数
+select * from (select * from sc where cid='01') as t1,(select * from sc where cid='02') as t2 where t1.sid=t2.sid and t1.score>t2.score;
 
-1.1
-查询同时存在" 01 "课程和" 02 "课程的情况
-select * from  (select * from SC where CId='01') as t1,(select * from SC where CId='02') as T2
-where t1.SId=t2.SId;
+1.1 查询同时存在" 01 "课程和" 02 "课程的情况
+select * from (select * from sc where cid='01') as t1,(select * from sc where cid='02') as t2 where t1.sid=t2.sid;
 
-1.2
-查询存在" 01 "课程但可能不存在" 02 "课程的情况(不存在时显示为 null ) 1.3 查询不存在" 01 "课程但存在" 02 "课程的情况
-select * from
-(select * from SC where CId='01')as t1 left join
-(select * from SC where CId='02') as t2  on  t1.SId=t2.SId;
+1.2 查询存在" 01 "课程但可能不存在" 02 "课程的情况(不存在时显示为 null )
+select * from (select * from sc where cid='01') as t1 left join (select * from sc where cid='02') as t2 on t1.sid=t2.sid;
 
-2.
-查询平均成绩大于等于 60 分的同学的学生编号和学生姓名和平均成绩
-select student.*,t1.avgscoree
-from student inner join (select sc.SId ,AVG(sc.score)as avgscore from sc GROUP BY sc.SId HAVING AVG(sc.score)>=60)as t1 on student.SId=t1.SId
+1.3 查询不存在" 01 "课程但存在" 02 "课程的情况
+select  * from (select * from sc where cid!='01') as t1,(select * from sc where cid='02') as t2 where t1.sid=t2.sid;
 
-3.
-查询在 SC 表存在成绩的学生信息
-select distinct student.* from Student inner join  SC on SC.SId=Student.SId;
+2. 查询平均成绩大于等于 60 分的同学的学生编号和学生姓名和平均成绩
+select * from student,(select sid ,avg(score) as avgscore from sc group by sid having avgscore>60) as t1 where t1.sid=student.sid;
 
+3. 查询在 SC 表存在成绩的学生信息
+select distinct student.* from student,sc where sc.sid=student.sid;
 
-4.
-查询所有同学的学生编号、学生姓名、选课总数、所有课程的总成绩(没成绩的显示为 null )
-select student.* ,t1.sumscore,t1.sumclass
-from student left join
-(select SC.SId, SUM(SC.score) as sumscore,COUNT(SC.CId) as sumclass from SC GROUP BY sc.SId) as t1
-on Student.SId=t1.SId;
+4. 查询所有同学的学生编号、学生姓名、选课总数、所有课程的总成绩(没成绩的显示为 null )
+select student.sid,student.sname,t1.countcid,t1.countscore  from student left join (select sc.sid,count(cid) as countcid,count(score) 
+as countscore from sc group by sc.sid )as t1 on t1.sid=student.sid;
 
-4.1查有成绩的学生信息
-select distinct student.* from student right join SC on student.SId=SC.SId;
+4.1 查有成绩的学生信息
+select distinct student.* from student right join sc on sc.sid=student.sid;
 
 5. 查询「李」姓老师的数量
-select count(CId) from teacher where Tname like '李%';
+select count(*) from Teacher where Tname like '李%';
 
 6. 查询学过「张三」老师授课的同学的信息
-select student.* from student,course,teacher,SC
-where SC.SId=Student.SId and course.CId=SC.CId and teacher.TId=course.TId and teacher.Tname='张三';
-
+select distinct student.* from student ,Teacher,sc,course
+where Teacher.Tname='张三' and course.Tid=Teacher.Tid and course.cid=sc.cid and sc.sid=student.sid;
 
 7. 查询没有学全所有课程的同学的信息
-select DISTINCT student.*
-from
-(select student.SId,course.CId
-from student,course ) as t1 LEFT JOIN
-(SELECT sc.SId,sc.CId from sc)as t2 on t1.SId=t2.SId and t1.CId=t2.CId,student
-where t2.SId is null
-and   t1.SId=student.SId
+select student.* from student ,(select sc.sid from sc group by sid having count(cid) <
+ (select count(*) as countcourse from course)) as t1 where t1.sid=student.sid ;
 
 
 8. 查询至少有一门课与学号为" 01 "的同学所学相同的同学的信息
-select distinct student.* from student ,SC where SC.CId in (select SC.CId from SC where SId='01') and Student.SId=SC.SId ;
+select student.* from student,(select distinct sid from sc  where cid in (select cid from sc where sid='01')) as t1 where student.sid=t1.sid;
 
-
-9. 查询和" 01 "号的同学学习的课程完全相同的其他同学的信息
-select *
-from student
-where student.SId not in (
-select t1.SId
-from
-(select student.SId,t.CId from student,
-	(select sc.CId from sc where sc.SId='01') as t )
-	 as t1  left join sc on t1.SId=sc.SId and t1.CId=sc.CId
-where sc.CId is null )
-and student.SId !='01';
-
+9. 查询和" 01 "号的同学学习的课程 完全相同的其他同学的信息
+select * from student where student.sid in 
+( select sc.sid from sc where cid in (select cid from sc where sid='01' ) group by sid having count(*)=(select count(*) from sc where sid ='01') ) and student.sid !='01'
 
 10. 查询没学过"张三"老师讲授的任一门课程的学生姓名
-select student.Sname from student where Student.SId not in
- (select student.SId from SC ,student ,course,Teacher
- where Teacher.Tname='张三' and teacher.TId=course.TId and SC.CId=course.CId and SC.SId=student.SId);
+select student.sname from student where student.sid not in (select student.sid from student,course,Teacher,sc where Teacher.Tname='张三' and 
+Teacher.Tid=course.Tid and course.cid=sc.cid and sc.sid=student.sid);
 
 
 11. 查询两门及其以上不及格课程的同学的学号，姓名及其平均成绩
